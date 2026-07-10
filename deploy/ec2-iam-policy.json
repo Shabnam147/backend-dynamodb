@@ -1,0 +1,55 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "DynamoDBTableAccess",
+      "Effect": "Allow",
+      "Action": [
+        "dynamodb:GetItem",
+        "dynamodb:PutItem",
+        "dynamodb:UpdateItem",
+        "dynamodb:DeleteItem",
+        "dynamodb:Query",
+        "dynamodb:Scan"
+      ],
+      "Resource": [
+        "arn:aws:dynamodb:REGION:ACCOUNT_ID:table/Users",
+        "arn:aws:dynamodb:REGION:ACCOUNT_ID:table/Users/index/*",
+        "arn:aws:dynamodb:REGION:ACCOUNT_ID:table/Products",
+        "arn:aws:dynamodb:REGION:ACCOUNT_ID:table/Products/index/*",
+        "arn:aws:dynamodb:REGION:ACCOUNT_ID:table/Carts",
+        "arn:aws:dynamodb:REGION:ACCOUNT_ID:table/Orders",
+        "arn:aws:dynamodb:REGION:ACCOUNT_ID:table/Orders/index/*"
+      ]
+    },
+    {
+      "Sid": "SecretsManagerRead",
+      "Effect": "Allow",
+      "Action": ["secretsmanager:GetSecretValue"],
+      "Resource": "arn:aws:secretsmanager:REGION:ACCOUNT_ID:secret:shopwave/backend-*"
+    },
+    {
+      "Sid": "PublishPurchaseNotification",
+      "Effect": "Allow",
+      "Action": ["sns:Publish"],
+      "Resource": "arn:aws:sns:REGION:ACCOUNT_ID:shopwave-purchase-notifications"
+    },
+    {
+      "Sid": "S3ExportBucket",
+      "Effect": "Allow",
+      "Action": ["s3:PutObject"],
+      "Resource": "arn:aws:s3:::REPLACE_WITH_YOUR_FRONTEND_BUCKET_NAME/db-exports/*"
+    },
+    {
+      "Sid": "CloudWatchLogsAndMetrics",
+      "Effect": "Allow",
+      "Action": [
+        "logs:CreateLogGroup",
+        "logs:CreateLogStream",
+        "logs:PutLogEvents",
+        "cloudwatch:PutMetricData"
+      ],
+      "Resource": "*"
+    }
+  ]
+}
