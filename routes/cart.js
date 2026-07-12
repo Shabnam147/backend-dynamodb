@@ -24,7 +24,7 @@ const enrich = async (items) => {
 // @route  GET /api/cart
 router.get('/', async (req, res) => {
   try {
-    const cart = await Cart.findByUserId(req.user.userId);
+    const cart = await Cart.findByUserId(req.user.id);
     const items = await enrich(cart.items || []);
     res.json({ success: true, cart: { ...cart, items, totalAmount: Cart.getTotal(cart.items || []) } });
   } catch (error) {
@@ -45,14 +45,14 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ success: false, message: `Only ${product.stock} units in stock.` });
     }
 
-    const cart = await Cart.findByUserId(req.user.userId);
+    const cart = await Cart.findByUserId(req.user.id);
     const items = cart.items || [];
     const idx = items.findIndex((i) => i.productId === productId);
 
     if (idx > -1) items[idx].quantity += parseInt(quantity);
     else items.push({ productId, quantity: parseInt(quantity), price: product.price });
 
-    const saved = await Cart.save(req.user.userId, items);
+    const saved = await Cart.save(req.user.id, items);
     const enriched = await enrich(items);
     res.json({ success: true, message: 'Item added to cart.', cart: { ...saved, items: enriched } });
   } catch (error) {
@@ -69,13 +69,13 @@ router.put('/:productId', async (req, res) => {
       return res.status(400).json({ success: false, message: 'Quantity must be at least 1.' });
     }
 
-    const cart = await Cart.findByUserId(req.user.userId);
+    const cart = await Cart.findByUserId(req.user.id);
     const items = cart.items || [];
     const idx = items.findIndex((i) => i.productId === req.params.productId);
     if (idx === -1) return res.status(404).json({ success: false, message: 'Item not found in cart.' });
 
     items[idx].quantity = parseInt(quantity);
-    const saved = await Cart.save(req.user.userId, items);
+    const saved = await Cart.save(req.user.id, items);
     const enriched = await enrich(items);
     res.json({ success: true, message: 'Cart updated.', cart: { ...saved, items: enriched } });
   } catch (error) {
@@ -86,9 +86,9 @@ router.put('/:productId', async (req, res) => {
 // @route  DELETE /api/cart/:productId
 router.delete('/:productId', async (req, res) => {
   try {
-    const cart = await Cart.findByUserId(req.user.userId);
+    const cart = await Cart.findByUserId(req.user.id);
     const items = (cart.items || []).filter((i) => i.productId !== req.params.productId);
-    const saved = await Cart.save(req.user.userId, items);
+    const saved = await Cart.save(req.user.id, items);
     const enriched = await enrich(items);
     res.json({ success: true, message: 'Item removed from cart.', cart: { ...saved, items: enriched } });
   } catch (error) {
@@ -99,7 +99,7 @@ router.delete('/:productId', async (req, res) => {
 // @route  DELETE /api/cart
 router.delete('/', async (req, res) => {
   try {
-    await Cart.clear(req.user.userId);
+    await Cart.clear(req.user.id);
     res.json({ success: true, message: 'Cart cleared.' });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Failed to clear cart.' });

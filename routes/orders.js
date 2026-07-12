@@ -13,7 +13,7 @@ router.use(protect);
 router.post('/', async (req, res) => {
   try {
     const { shippingAddress } = req.body;
-    const cart = await Cart.findByUserId(req.user.userId);
+    const cart = await Cart.findByUserId(req.user.id);
     const items = cart.items || [];
     if (items.length === 0) {
       return res.status(400).json({ success: false, message: 'Your cart is empty.' });
@@ -33,9 +33,9 @@ router.post('/', async (req, res) => {
     }
 
     const totalAmount = orderItems.reduce((sum, i) => sum + i.price * i.quantity, 0);
-    const order = await Order.create({ userId: req.user.userId, items: orderItems, totalAmount, shippingAddress });
+    const order = await Order.create({ userId: req.user.id, items: orderItems, totalAmount, shippingAddress });
 
-    await Cart.clear(req.user.userId);
+    await Cart.clear(req.user.id);
 
     // Fire-and-forget notification to the "purchase" SNS topic (Topic 2)
     publishPurchaseEvent(order, req.user);
@@ -50,7 +50,7 @@ router.post('/', async (req, res) => {
 // @route  GET /api/orders — current user's orders
 router.get('/', async (req, res) => {
   try {
-    const orders = await Order.findByUser(req.user.userId);
+    const orders = await Order.findByUser(req.user.id);
     res.json({ success: true, count: orders.length, orders });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Failed to fetch orders.' });
@@ -71,7 +71,7 @@ router.get('/admin/all', adminOnly, async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const order = await Order.findById(req.params.id);
-    if (!order || order.userId !== req.user.userId) {
+    if (!order || order.userId !== req.user.id) {
       return res.status(404).json({ success: false, message: 'Order not found.' });
     }
     res.json({ success: true, order });
