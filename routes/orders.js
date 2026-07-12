@@ -6,14 +6,36 @@ const { protect } = require('../middleware/authMiddleware');
 const { adminOnly } = require('../middleware/adminMiddleware');
 const { publishPurchaseEvent } = require('../config/sns');
 const router = express.Router();
+const User = require('../models/User'); // add this import
 
+router.get('/admin/all', adminOnly, async (req, res) => {
+  try {
+    const orders = await Order.findAll();
+
+    const enriched = await Promise.all(
+      orders.map(async (o) => {
+        const user = await User.findById(o.userId);
+        return {
+          ...o,
+          _id: o.orderId,
+          userId: user ? { _id: user.userId, name: user.name, email: user.email } : null,
+        };
+      })
+    );
+
+    res.json({ success: true, count: enriched.length, orders: enriched });
+  } catch (error) {
+    console.error('Fetch all orders error:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch orders.' });
+  }
+});
 router.use(protect);
 
 // @route  POST /api/orders  — place an order, clear cart, notify admin via SNS
 router.post('/', async (req, res) => {
   try {
     const { shippingAddress } = req.body;
-    const cart = await Cart.findByUserId(req.user.id);
+    const cart = await Cart.findByUserId(req.user.userId);
     const items = cart.items || [];
     if (items.length === 0) {
       return res.status(400).json({ success: false, message: 'Your cart is empty.' });
@@ -33,9 +55,9 @@ router.post('/', async (req, res) => {
     }
 
     const totalAmount = orderItems.reduce((sum, i) => sum + i.price * i.quantity, 0);
-    const order = await Order.create({ userId: req.user.id, items: orderItems, totalAmount, shippingAddress });
+    const order = await Order.create({ userId: req.user.userId, items: orderItems, totalAmount, shippingAddress });
 
-    await Cart.clear(req.user.id);
+    await Cart.clear(req.user.userId);
 
     // Fire-and-forget notification to the "purchase" SNS topic (Topic 2)
     publishPurchaseEvent(order, req.user);
@@ -50,7 +72,7 @@ router.post('/', async (req, res) => {
 // @route  GET /api/orders — current user's orders
 router.get('/', async (req, res) => {
   try {
-    const orders = await Order.findByUser(req.user.id);
+    const orders = await Order.findByUser(req.user.userId);
     res.json({ success: true, count: orders.length, orders });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Failed to fetch orders.' });
@@ -71,7 +93,7 @@ router.get('/admin/all', adminOnly, async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const order = await Order.findById(req.params.id);
-    if (!order || order.userId !== req.user.id) {
+    if (!order || order.userId !== req.user.userId) {
       return res.status(404).json({ success: false, message: 'Order not found.' });
     }
     res.json({ success: true, order });
