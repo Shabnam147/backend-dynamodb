@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Products — ShopWave</title>
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+  <div id="navbar"></div>
+
+  <div class="page-wrapper">
+    <div class="page-header">
+      <div class="container">
+        <div class="breadcrumb">
+          <a href="/">Home</a><span>/</span><span style="color:rgba(255,255,255,0.8)">Products</span>
+        </div>
+        <h1>All Products</h1>
+        <p>Find exactly what you're looking for</p>
+      </div>
+    </div>
+
+    <div class="container" style="padding-bottom:80px;">
+      <!-- Toolbar -->
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:24px;flex-wrap:wrap;">
+        <div class="search-wrap" style="flex:1;min-width:220px;max-width:420px;">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="search-input" placeholder="Search products…" autocomplete="off" />
+        </div>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+          <select id="sort-select" class="form-control" style="width:auto;padding:10px 14px;border-radius:var(--radius-full);">
+            <option value="">Latest</option>
+            <option value="price_asc">Price: Low → High</option>
+            <option value="price_desc">Price: High → Low</option>
+            <option value="name">Name A–Z</option>
+          </select>
+          <div id="result-count" style="font-size:0.875rem;color:var(--text-muted);white-space:nowrap;"></div>
+        </div>
+      </div>
+
+      <!-- Category Chips -->
+      <div class="filter-chips" id="category-chips">
+        <button class="chip active" data-cat="">All</button>
+        <button class="chip" data-cat="Electronics">💻 Electronics</button>
+        <button class="chip" data-cat="Clothing">👕 Clothing</button>
+        <button class="chip" data-cat="Books">📚 Books</button>
+        <button class="chip" data-cat="Home">🏠 Home</button>
+        <button class="chip" data-cat="Sports">⚽ Sports</button>
+        <button class="chip" data-cat="Other">📦 Other</button>
+      </div>
+
+      <!-- Grid -->
+      <div id="products-grid" class="products-grid">
+        <div class="loading-spinner" style="grid-column:1/-1"><div class="spinner"></div><span>Loading…</span></div>
+      </div>
+
+      <!-- Pagination -->
+      <div id="pagination" style="display:flex;justify-content:center;gap:8px;margin-top:48px;"></div>
+    </div>
+  </div>
+
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-bottom">© 2025 ShopWave. All rights reserved.</div>
+    </div>
+  </footer>
+
+  <script src="/js/config.js"></script>
+  <script src="/js/auth.js"></script>
+  <script>
+    renderNavbar('products');
+
+    let currentPage = 1;
+    let activeCategory = '';
+    let activeSort = '';
+    let activeSearch = '';
+
+    // Read URL params
+    const urlParams = new URLSearchParams(location.search);
+    if (urlParams.get('category')) {
+      activeCategory = urlParams.get('category');
+    }
+
+    async function loadProducts() {
+      const grid = document.getElementById('products-grid');
+      grid.innerHTML = '<div class="loading-spinner" style="grid-column:1/-1"><div class="spinner"></div><span>Loading…</span></div>';
+
+      const params = new URLSearchParams({ page: currentPage, limit: 12 });
+      if (activeSearch) params.set('search', activeSearch);
+      if (activeCategory) params.set('category', activeCategory);
+      if (activeSort) params.set('sort', activeSort);
+
+      try {
+        const data = await api.get(`/products?${params}`);
+        const { products, total, pages } = data;
+
+        document.getElementById('result-count').textContent = `${total} result${total !== 1 ? 's' : ''}`;
+
+        if (!products?.length) {
+          grid.innerHTML = `
+            <div class="empty-state" style="grid-column:1/-1">
+              <span class="icon">🔍</span>
+              <h3>No products found</h3>
+              <p>Try adjusting your search or filters.</p>
+              <button class="btn btn-outline" onclick="clearFilters()">Clear Filters</button>
+            </div>`;
+          document.getElementById('pagination').innerHTML = '';
+          return;
+        }
+
+        grid.innerHTML = products.map(p => `
+          <div class="product-card slide-in">
+            <div class="product-card-img-wrap" onclick="location.href='/product.html?id=${p._id}'" style="cursor:pointer">
+              <img src="${p.imageUrl}" alt="${p.name}" loading="lazy" onerror="this.src='https://via.placeholder.com/400x300?text=Product'" />
+              <div class="product-badge">${p.category}</div>
+              ${p.stock < 5 && p.stock > 0 ? '<div class="product-badge" style="left:auto;right:12px;background:var(--warning)">Low Stock</div>' : ''}
+              ${p.stock === 0 ? '<div style="position:absolute;inset:0;background:rgba(255,255,255,0.7);display:flex;align-items:center;justify-content:center;font-weight:700;color:var(--text-muted)">Out of Stock</div>' : ''}
+            </div>
+            <div class="product-card-body">
+              <span class="product-category">${p.category}</span>
+              <h3 class="product-name">${p.name}</h3>
+              <div style="color:var(--text-muted);font-size:0.82rem;margin-bottom:4px;line-height:1.5">${p.description ? p.description.substring(0, 70) + '…' : ''}</div>
+              <div class="product-price">${fmt.price(p.price)}</div>
+              <div class="product-card-actions">
+                <a href="/product.html?id=${p._id}" class="btn btn-outline btn-sm" style="flex:1">Details</a>
+                <button class="btn btn-primary btn-sm" style="flex:1" onclick="addToCart('${p._id}', this)" ${p.stock === 0 ? 'disabled' : ''}>
+                  ${p.stock === 0 ? 'Out of Stock' : 'Add to Cart'}
+                </button>
+              </div>
+            </div>
+          </div>
+        `).join('');
+
+        renderPagination(pages);
+      } catch (err) {
+        grid.innerHTML = `<div class="alert alert-error" style="grid-column:1/-1">Failed to load products: ${err.message}</div>`;
+      }
+    }
+
+    function renderPagination(pages) {
+      const container = document.getElementById('pagination');
+      if (pages <= 1) { container.innerHTML = ''; return; }
+      let html = '';
+      for (let i = 1; i <= pages; i++) {
+        html += `<button class="btn btn-sm ${i === currentPage ? 'btn-primary' : 'btn-ghost'}" onclick="goPage(${i})">${i}</button>`;
+      }
+      container.innerHTML = html;
+    }
+
+    function goPage(p) { currentPage = p; loadProducts(); window.scrollTo(0, 0); }
+
+    function clearFilters() {
+      activeSearch = '';
+      activeCategory = '';
+      activeSort = '';
+      document.getElementById('search-input').value = '';
+      document.getElementById('sort-select').value = '';
+      document.querySelectorAll('.chip').forEach(c => c.classList.toggle('active', c.dataset.cat === ''));
+      currentPage = 1;
+      loadProducts();
+    }
+
+    async function addToCart(productId, btn) {
+      if (!Auth.isLoggedIn()) { location.href = '/login.html'; return; }
+      btn.disabled = true; btn.textContent = '…';
+      try {
+        await api.post('/cart', { productId, quantity: 1 }, true);
+        Toast.success('Added to cart!');
+        CartBadge.update();
+        btn.textContent = '✓ Added';
+        setTimeout(() => { btn.disabled = false; btn.textContent = 'Add to Cart'; }, 2000);
+      } catch (err) {
+        Toast.error(err.message);
+        btn.disabled = false; btn.textContent = 'Add to Cart';
+      }
+    }
+
+    // Category chips
+    document.getElementById('category-chips').addEventListener('click', e => {
+      const chip = e.target.closest('.chip');
+      if (!chip) return;
+      document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+      activeCategory = chip.dataset.cat;
+      currentPage = 1;
+      loadProducts();
+    });
+
+    // Set active chip from URL
+    if (activeCategory) {
+      document.querySelectorAll('.chip').forEach(c => {
+        c.classList.toggle('active', c.dataset.cat === activeCategory);
+      });
+    }
+
+    // Sort
+    document.getElementById('sort-select').addEventListener('change', e => {
+      activeSort = e.target.value; currentPage = 1; loadProducts();
+    });
+
+    // Search
+    document.getElementById('search-input').addEventListener('input', debounce(e => {
+      activeSearch = e.target.value.trim(); currentPage = 1; loadProducts();
+    }, 350));
+
+    loadProducts();
+  </script>
+</body>
+</html>
