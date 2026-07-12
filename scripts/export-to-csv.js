@@ -16,7 +16,7 @@ const { ScanCommand } = require('@aws-sdk/lib-dynamodb');
 const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
 const { ddb, TABLES } = require('../config/dynamo');
 
-const s3 = new S3Client({ region: process.env.AWS_REGION || 'ap-south-1' });
+const s3 = new S3Client({ region: process.env.AWS_REGION || 'us-east-1' });
 const BUCKET = process.env.FRONTEND_BUCKET; // same bucket used for the S3 static website
 
 const toCSV = (items) => {
