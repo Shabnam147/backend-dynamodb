@@ -87,7 +87,10 @@ router.post(
 
 // @route  GET /api/auth/me
 router.get('/me', protect, async (req, res) => {
-  res.json({ success: true, user: req.user });
+  res.json({
+    success: true,
+    user: { id: req.user.userId, name: req.user.name, email: req.user.email, role: req.user.role },
+  });
 });
 
 module.exports = router;
