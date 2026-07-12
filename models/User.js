@@ -55,7 +55,7 @@ const matchPassword = async (enteredPassword, hashedPassword) =>
 const sanitize = (user) => {
   if (!user) return null;
   const { password, ...safe } = user;
-  return safe;
+  return { id: safe.userId, ...safe };
 };
 
 module.exports = { findById, findByEmail, create, matchPassword, sanitize };
